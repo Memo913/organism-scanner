@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Organism Scanner</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+    }
+    header {
+      background-color: #007BFF;
+      color: white;
+      padding: 1em;
+      text-align: center;
+      font-size: 1.5em;
+    }
+    #main {
+      padding: 1em;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    video {
+      width: 90%;
+      max-width: 500px;
+      border-radius: 10px;
+      border: 2px solid #007BFF;
+      margin-bottom: 1em;
+    }
+    #prediction {
+      background-color: white;
+      padding: 1em;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      width: 90%;
+      max-width: 500px;
+      font-size: 1.1em;
+      white-space: pre-line;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    🧬 Organism Scanner
+  </header>
+
+  <div id="main">
+    <video id="webcam" autoplay playsinline muted></video>
+    <div id="prediction">Loading model and camera...</div>
+  </div>
+
+  <!-- TensorFlow.js and COCO-SSD -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.2.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"></script>
+
+  <script>
+    const organismData = {
+      "person": { name: "human", somatic: 46, gametes: 23, reproduction: "sexual" },
+      "cat": { somatic: 38, gametes: 19, reproduction: "sexual" },
+      "dog": { somatic: 78, gametes: 39, reproduction: "sexual" },
+      "elephant": { somatic: 56, gametes: 28, reproduction: "sexual" },
+      "horse": { somatic: 64, gametes: 32, reproduction: "sexual" },
+      "cow": { somatic: 60, gametes: 30, reproduction: "sexual" },
+      "lion": { somatic: 38, gametes: 19, reproduction: "sexual" }, // Not in COCO, but if needed
+      "giraffe": { somatic: 56, gametes: 28, reproduction: "sexual" },
+      "bear": { somatic: 74, gametes: 37, reproduction: "sexual" },
+      "bird": { name: "pigeon", somatic: 80, gametes: 40, reproduction: "sexual" },
+      "sheep": { somatic: 54, gametes: 27, reproduction: "sexual" }
+    };
+
+    let model, video;
+
+    async function setupWebcam() {
+      video = document.getElementById('webcam');
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
+      return new Promise(resolve => {
+        video.onloadedmetadata = () => resolve(video);
+      });
+    }
+
+    async function run() {
+      const predictionBox = document.getElementById("prediction");
+      predictionBox.innerText = "Loading model and camera...";
+
+      model = await cocoSsd.load();
+      await setupWebcam();
+
+      predictionBox.innerText = "Model loaded. Scanning...";
+
+      detectLoop();
+    }
+
+    async function detectLoop() {
+      const predictionBox = document.getElementById("prediction");
+
+      setInterval(async () => {
+        const predictions = await model.detect(video);
+        if (predictions.length > 0) {
+          const topPrediction = predictions[0].class;
+
+          if (organismData[topPrediction]) {
+            const org = organismData[topPrediction];
+            const name = org.name || topPrediction;
+
+            predictionBox.innerText =
+              `Organism: ${name.charAt(0).toUpperCase() + name.slice(1)}\n` +
+              `Somatic Chromosomes: ${org.somatic}\n` +
+              `Gamete Chromosomes: ${org.gametes}\n` +
+              `Reproduction: ${org.reproduction}`;
+          } else {
+            predictionBox.innerText = `Detected: ${topPrediction}\nNo data available.`;
+          }
+        } else {
+          predictionBox.innerText = "No organism detected.";
+        }
+      }, 3000);
+    }
+
+    run();
+  </script>
+
+</body>
+</html>
